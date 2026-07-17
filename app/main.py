@@ -15,6 +15,8 @@ from app.api.chat.chat_router import chat_router
 from app.api.system.system_router import system_router
 from contextlib import asynccontextmanager
 from pathlib import Path
+import pymysql
+import ssl
 
 loggger = Logger().get_Logger(__name__)
 
@@ -22,8 +24,55 @@ loggger = Logger().get_Logger(__name__)
 ROOT_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT_DIR / "frontend_dist"
 
+def init_cloud_database():
+    """启动时自动初始化云数据库：创建表并导入数据（仅在表不存在时执行）"""
+    try:
+        mysql_host = os.getenv("MYSQL_HOST", "")
+        conn_kwargs = dict(
+            host=mysql_host,
+            user=os.getenv("MYSQL_USER"),
+            password=os.getenv("MYSQL_PASSWORD"),
+            db=os.getenv("MYSQL_DB"),
+            port=int(os.getenv("MYSQL_PORT", 3306)),
+            connect_timeout=15,
+        )
+        if "aivencloud" in mysql_host:
+            conn_kwargs["ssl"] = {"ssl": ssl.create_default_context()}
+        conn = pymysql.connect(**conn_kwargs)
+        cursor = conn.cursor()
+        cursor.execute("SHOW TABLES")
+        tables = cursor.fetchall()
+        if len(tables) >= 5:
+            loggger.info(f"[数据库] 已有 {len(tables)} 张表，跳过初始化")
+            cursor.close()
+            conn.close()
+            return
+        loggger.info("[数据库] 表不存在或不足，开始导入 init_db.sql ...")
+        sql_file = ROOT_DIR / "init_db.sql"
+        if not sql_file.exists():
+            loggger.warning("[数据库] init_db.sql 不存在，跳过导入")
+            cursor.close()
+            conn.close()
+            return
+        sql_content = sql_file.read_text(encoding="utf-8")
+        # 按分号分割语句，逐条执行
+        for statement in sql_content.split(";"):
+            statement = statement.strip()
+            if statement and not statement.startswith("--") and not statement.startswith("/*!"):
+                try:
+                    cursor.execute(statement)
+                except Exception as e:
+                    loggger.warning(f"[数据库] 语句执行警告: {e}")
+        conn.commit()
+        cursor.close()
+        conn.close()
+        loggger.info("[数据库] init_db.sql 导入完成")
+    except Exception as e:
+        loggger.error(f"[数据库] 初始化失败: {e}", exc_info=True)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_cloud_database()
     app.state.system_agent = SystemAgent()
     app.state.sql_question_agent = SQLQuestionAgent()
     app.state.analyze_agent = AnalyzeAgent()

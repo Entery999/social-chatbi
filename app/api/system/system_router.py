@@ -5,15 +5,35 @@ from app.utils.logger import Logger
 import redis
 import os
 import pymysql
+import ssl
 from dotenv import load_dotenv
 load_dotenv()
-#实例化redis连接
+
+_ssl_ctx = ssl.create_default_context()
+
+def _mysql_kwargs(**extra):
+    """构造MySQL连接参数，云数据库自动启用SSL"""
+    kwargs = dict(
+        host=os.getenv("MYSQL_HOST"),
+        user=os.getenv("MYSQL_USER"),
+        password=os.getenv("MYSQL_PASSWORD"),
+        db=os.getenv("MYSQL_DB"),
+        port=int(os.getenv("MYSQL_PORT")),
+    )
+    if "aivencloud" in (os.getenv("MYSQL_HOST") or ""):
+        kwargs["ssl"] = {"ssl": _ssl_ctx}
+    kwargs.update(extra)
+    return kwargs
+
+#实例化redis连接（支持Upstash TLS）
+_redis_ssl = os.getenv("REDIS_PASSWORD") is not None
 redis_con = redis.Redis(
     host=os.getenv("REDIS_HOST", "127.0.0.1"),
     port=int(os.getenv("REDIS_PORT", 6379)),
     password=os.getenv("REDIS_PASSWORD", None),
     db=0,
-    protocol=2
+    protocol=2,
+    ssl=_redis_ssl,
 )
 
 system_router = APIRouter()
@@ -22,13 +42,7 @@ logger = Logger().get_Logger(__name__)
 
 def _check_email_exists(email: str) -> bool:
     try:
-        con = pymysql.connect(
-            host=os.getenv("MYSQL_HOST"),
-            user=os.getenv("MYSQL_USER"),
-            password=os.getenv("MYSQL_PASSWORD"),
-            db=os.getenv("MYSQL_DB"),
-            port=int(os.getenv("MYSQL_PORT")),
-        )
+        con = pymysql.connect(**_mysql_kwargs())
         cursor = con.cursor()
         cursor.execute("SELECT email FROM user_info WHERE email = %s", (email,))
         result = cursor.fetchall()
@@ -88,13 +102,7 @@ def register(args:RegisterSchema):
     if not code_bytes or code_bytes.decode() != args.code:
         return {"code": 500, "msg": "验证码错误或已过期"}
     try:
-        con = pymysql.connect(
-            host=os.getenv("MYSQL_HOST"),
-            user=os.getenv("MYSQL_USER"),
-            password=os.getenv("MYSQL_PASSWORD"),
-            db=os.getenv("MYSQL_DB"),
-            port=int(os.getenv("MYSQL_PORT")),
-        )
+        con = pymysql.connect(**_mysql_kwargs())
         cursor = con.cursor()
         user_name = args.email.split("@")[0]
         cursor.execute(

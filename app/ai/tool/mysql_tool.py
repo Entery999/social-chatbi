@@ -4,10 +4,28 @@ from app.utils.logger import Logger
 import os
 from dotenv import load_dotenv
 import pymysql
+import ssl
 from contextvars import ContextVar
 
 load_dotenv()
 logger = Logger().get_Logger(__name__)
+
+_ssl_ctx = ssl.create_default_context()
+
+def _mysql_conn_kwargs(**extra):
+    """构造MySQL连接参数，云数据库自动启用SSL"""
+    kwargs = dict(
+        host=os.getenv("MYSQL_HOST"),
+        user=os.getenv("MYSQL_USER"),
+        password=os.getenv("MYSQL_PASSWORD"),
+        db=os.getenv("MYSQL_DB"),
+        port=int(os.getenv("MYSQL_PORT")),
+        charset='utf8',
+    )
+    if "aivencloud" in (os.getenv("MYSQL_HOST") or ""):
+        kwargs["ssl"] = {"ssl": _ssl_ctx}
+    kwargs.update(extra)
+    return kwargs
 
 # 上下文变量：存储当前用户问题，供日志记录使用
 _current_question: ContextVar[str] = ContextVar("current_question", default="")
@@ -23,14 +41,7 @@ def set_query_context(question: str, user_id: str = ""):
 def _log_query(sql: str):
     """记录查询日志到 MySQL"""
     try:
-        conn = pymysql.connect(
-            host=os.getenv("MYSQL_HOST"),
-            user=os.getenv("MYSQL_USER"),
-            password=os.getenv("MYSQL_PASSWORD"),
-            db=os.getenv("MYSQL_DB"),
-            port=int(os.getenv("MYSQL_PORT")),
-            charset='utf8',
-        )
+        conn = pymysql.connect(**_mysql_conn_kwargs())
         cursor = conn.cursor()
         cursor.execute(
             "INSERT INTO query_log (question, sql_text, user_id) VALUES (%s, %s, %s)",
@@ -57,14 +68,7 @@ def mysql_tool(sql: str) -> str:
     try:
         logger.info(f"[MySQL] 执行SQL: {sql[:200]}")
         _log_query(sql)
-        con = pymysql.connect(
-            host=os.getenv("MYSQL_HOST"),
-            user=os.getenv("MYSQL_USER"),
-            password=os.getenv("MYSQL_PASSWORD"),
-            db=os.getenv("MYSQL_DB"),
-            port=int(os.getenv("MYSQL_PORT")),
-            charset='utf8',
-        )
+        con = pymysql.connect(**_mysql_conn_kwargs())
         cursor = con.cursor()
         cursor.execute(sql)
         result = cursor.fetchall()

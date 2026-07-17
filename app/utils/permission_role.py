@@ -1,11 +1,14 @@
 import os
 import pymysql
+import ssl
 from dotenv import load_dotenv
 from app.utils.logger import Logger
 
 logger = Logger().get_Logger()
 
 load_dotenv()
+
+_ssl_ctx = ssl.create_default_context()
 
 def permission_role(user_id: str) -> str:
     sql = "select role from user_info where email = %s"
@@ -20,7 +23,10 @@ def permission_role(user_id: str) -> str:
         return "查询失败"
 
     try:
-        con = pymysql.connect(host=host, port=int(port), user=user, password=password, database=database)
+        kwargs = dict(host=host, port=int(port), user=user, password=password, database=database)
+        if "aivencloud" in (host or ""):
+            kwargs["ssl"] = {"ssl": _ssl_ctx}
+        con = pymysql.connect(**kwargs)
         cursor = con.cursor()
         try:
             cursor.execute(sql, (user_id,))
