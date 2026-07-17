@@ -15,7 +15,7 @@ def send_email(to:str, subject:str, content:str) -> str:
     """
     api_key = os.getenv("RESEND_API_KEY", "")
     sender = "onboarding@resend.dev"
-    logger.info(f"[邮件] 准备发送: to={to}, from={sender}")
+    logger.info(f"[邮件] 准备发送: to={to}, from={sender}, key={api_key[:8]}...{api_key[-4:] if len(api_key)>12 else '???'}")
     try:
         payload = json.dumps({
             "from": sender,
@@ -32,14 +32,15 @@ def send_email(to:str, subject:str, content:str) -> str:
             },
             method="POST"
         )
-        logger.info(f"[邮件] 正在调用 Resend API...")
+        logger.info(f"[邮件] 正在调用 Resend API... url={req.full_url}")
         with urllib.request.urlopen(req, timeout=15) as resp:
             body = json.loads(resp.read().decode("utf-8"))
             logger.info(f"[邮件] 发送成功: {to}, id={body.get('id')}")
             return "邮件发送成功"
     except urllib.error.HTTPError as e:
         err_body = e.read().decode("utf-8", errors="replace")
-        logger.error(f"[邮件] Resend API 错误: {e.code} {err_body}")
+        err_headers = dict(e.headers) if e.headers else {}
+        logger.error(f"[邮件] Resend API 错误: status={e.code}, body={err_body}, headers={err_headers}")
         return f"邮件发送失败：API错误 {e.code} {err_body}"
     except Exception as e:
         logger.error(f"[邮件] 发送异常: {type(e).__name__}: {e}")
