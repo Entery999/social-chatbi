@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>社保数据分析仪表盘</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: #f0f2f5; padding: 20px; }
+        h1 { text-align: center; color: #1a1a2e; margin-bottom: 20px; font-size: 24px; }
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 20px; max-width: 1400px; margin: 0 auto; }
+        .chart-card { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .chart-box { width: 100%; height: 400px; }
+        .footer { text-align: center; color: #999; margin-top: 30px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>社保数据分析仪表盘</h1>
+    <div class="dashboard">
+        <div class="chart-card"><div id="chart_0" class="chart-box"></div></div>
+        <div class="chart-card"><div id="chart_1" class="chart-box"></div></div>
+        <div class="chart-card"><div id="chart_2" class="chart-box"></div></div>
+    </div>
+    <div class="footer">便民 ChatBI 仪表盘 · 生成于 2026-07-17 11:01:19</div>
+    <script>
+    var chart_0 = echarts.init(document.getElementById("chart_0"));
+    chart_0.setOption({"title": {"text": "人口年龄结构"}, "tooltip": {"trigger": "item", "formatter": "{a} <br/>{b}: {c} ({d}%)"}, "series": [{"name": "年龄分布", "type": "pie", "radius": ["40%", "70%"], "data": [{"value": 15.9, "name": "0-14岁"}, {"value": 67.0, "name": "15-64岁"}, {"value": 17.1, "name": "65岁以上"}], "label": {"formatter": "{b}: {d}%"}}]});
+    var chart_1 = echarts.init(document.getElementById("chart_1"));
+    chart_1.setOption({"title": {"text": "基金余额分布"}, "tooltip": {}, "xAxis": {"type": "category", "data": ["区域1", "区域2", "区域3", "区域4", "区域5", "区域6", "区域7", "区域8", "区域9", "区域10"]}, "yAxis": {"type": "value", "name": "余额(元)"}, "series": [{"name": "基金余额", "type": "bar", "data": [1017790817, 1027639193, 987382548, 968010555, 1003388147, 945655765, 1054986713, 1093434049, 1019734698, 988378072]}]});
+    var chart_2 = echarts.init(document.getElementById("chart_2"));
+    chart_2.setOption({"title": {"text": "政策调整占比"}, "tooltip": {"trigger": "item", "formatter": "{a} <br/>{b}: {c} ({d}%)"}, "series": [{"name": "调整类型", "type": "pie", "radius": "60%", "data": [{"value": 292, "name": "类型0"}, {"value": 1287, "name": "类型1"}, {"value": 421, "name": "类型2"}], "label": {"formatter": "{b}: {d}%"}}]});
+    </script>
+</body>
+</html>

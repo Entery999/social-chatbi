@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: social-chatbi
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
+      - key: MODEL_NAME
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_API_BASE
+        sync: false
+      - key: MYSQL_HOST
+        sync: false
+      - key: MYSQL_USER
+        sync: false
+      - key: MYSQL_PASSWORD
+        sync: false
+      - key: MYSQL_DB
+        sync: false
+      - key: MYSQL_PORT
+        sync: false
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: EMAIL_PASSWORD
+        sync: false
+      - key: REDIS_HOST
+        sync: false
+      - key: RENDER_URL
+        sync: false
