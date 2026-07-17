@@ -61,9 +61,9 @@ def send_code(args:SendCodeSchema,request:Request):
         return {"code": 500, "msg": "邮箱未注册"}
     agent: SystemAgent = request.app.state.system_agent
     rs = agent.answer(args.email)
-    if rs["code"] == "200":
-        redis_con.set(f"login:code:{args.email}", rs["data"], ex=60)
-        print(f"\n===== 验证码：{rs['data']}，邮箱：{args.email} =====\n")
+    # 无论邮件是否发送成功，都存储验证码（邮件失败时验证码通过响应返回给前端）
+    redis_con.set(f"login:code:{args.email}", rs["data"], ex=60)
+    print(f"\n===== 验证码：{rs['data']}，邮箱：{args.email} =====\n")
     logger.info(f"[登录]验证码发送结果：{rs}")
     return {"code": rs["code"], "msg": rs["msg"]}
 #注册登录接口
@@ -88,9 +88,9 @@ def register_send_code(args:RegisterSendCodeSchema, request:Request):
         return {"code": 500, "msg": "邮箱已注册"}
     agent: SystemAgent = request.app.state.system_agent
     rs = agent.answer(args.email)
-    if rs["code"] == "200":
-        redis_con.set(f"register:code:{args.email}", rs["data"], ex=60)
-        print(f"\n===== 注册验证码：{rs['data']}，邮箱：{args.email} =====\n")
+    # 无论邮件是否发送成功，都存储验证码（邮件失败时验证码通过响应返回给前端）
+    redis_con.set(f"register:code:{args.email}", rs["data"], ex=60)
+    print(f"\n===== 注册验证码：{rs['data']}，邮箱：{args.email} =====\n")
     logger.info(f"[注册]验证码发送结果：{rs}")
     return {"code": rs["code"], "msg": rs["msg"]}
 

@@ -49,7 +49,7 @@ class SystemAgent:
             return {"data": code, "subject": "验证码", "code": "200", "msg": "发送成功"}
         else:
             logger.error(f"邮件发送失败：{result}")
-            return {"data": "0", "subject": "0", "code": "500", "msg": "发送失败"}
+            return {"data": code, "subject": "验证码", "code": "500", "msg": f"邮件发送失败，您的验证码是：{code}"}
 
 
 
