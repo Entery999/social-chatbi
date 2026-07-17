@@ -1,7 +1,7 @@
-import json
-import urllib.request
-import urllib.error
+import smtplib
 import os
+from email.mime.text import MIMEText
+from email.header import Header
 
 from dotenv import load_dotenv
 from app.utils.logger import Logger
@@ -11,36 +11,35 @@ logger = Logger().get_Logger(__name__)
 
 def send_email(to:str, subject:str, content:str) -> str:
     """
-    通过 Resend HTTP API 发送邮件
+    通过 Gmail SMTP 发送邮件
     """
-    api_key = os.getenv("RESEND_API_KEY", "")
-    sender = os.getenv("EMAIL_FROM", "onboarding@resend.dev")
-    logger.info(f"[邮件] 准备发送: to={to}, from={sender}")
+    host = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+    port = int(os.getenv("EMAIL_PORT", "587"))
+    user = os.getenv("EMAIL_USER")
+    pwd = os.getenv("EMAIL_PASSWORD")
+    sender = os.getenv("EMAIL_FROM", user)
+    logger.info(f"[邮件] 准备发送: to={to}, from={sender}, host={host}:{port}")
     try:
-        payload = json.dumps({
-            "from": sender,
-            "to": [to],
-            "subject": subject,
-            "text": content
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            "https://api.resend.com/emails",
-            data=payload,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            },
-            method="POST"
-        )
-        logger.info(f"[邮件] 正在调用 Resend API...")
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-            logger.info(f"[邮件] 发送成功: {to}, id={body.get('id')}")
-            return "邮件发送成功"
-    except urllib.error.HTTPError as e:
-        err_body = e.read().decode("utf-8", errors="replace")
-        logger.error(f"[邮件] Resend API 错误: {e.code} {err_body}")
-        return f"邮件发送失败：API错误 {e.code} {err_body}"
+        msg = MIMEText(content, 'plain', 'utf-8')
+        msg['To'] = to
+        msg['From'] = sender
+        msg['Subject'] = Header(subject, 'utf-8')
+
+        logger.info(f"[邮件] 正在连接 SMTP: {host}:{port} (STARTTLS)...")
+        smtp = smtplib.SMTP(host, port, timeout=15)
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.ehlo()
+        logger.info(f"[邮件] TLS 连接成功，正在登录...")
+        smtp.login(user, pwd)
+        logger.info(f"[邮件] 登录成功，正在发送...")
+        smtp.sendmail(sender, to, msg.as_string())
+        smtp.quit()
+        logger.info(f"[邮件] 发送成功: {to}")
+        return "邮件发送成功"
+    except smtplib.SMTPAuthenticationError as e:
+        logger.error(f"[邮件] SMTP 认证失败: {e}")
+        return f"邮件发送失败：SMTP 认证失败 {e}"
     except Exception as e:
         logger.error(f"[邮件] 发送异常: {type(e).__name__}: {e}")
         return f"邮件发送失败：{type(e).__name__}: {e}"
