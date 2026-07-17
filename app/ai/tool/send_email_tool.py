@@ -1,7 +1,6 @@
-import smtplib
-import socket
-from email.mime.text import MIMEText
-from email.header import Header
+import json
+import urllib.request
+import urllib.error
 import os
 
 from dotenv import load_dotenv
@@ -12,33 +11,36 @@ logger = Logger().get_Logger(__name__)
 
 def send_email(to:str, subject:str, content:str) -> str:
     """
-    发送邮件
+    通过 Resend HTTP API 发送邮件
     """
-    host = os.getenv("EMAIL_HOST", "smtp.qq.com")
-    user = os.getenv("EMAIL_FROM")
-    pwd = os.getenv("EMAIL_PASSWORD")
-    logger.info(f"[邮件] 准备发送: to={to}, host={host}, user={user}")
+    api_key = os.getenv("RESEND_API_KEY", "")
+    sender = os.getenv("EMAIL_FROM", "onboarding@resend.dev")
+    logger.info(f"[邮件] 准备发送: to={to}, from={sender}")
     try:
-        msg = MIMEText(content, 'plain', 'utf-8')
-        msg['To'] = to
-        msg['From'] = user
-        msg['Subject'] = Header(subject, 'utf-8')
-
-        logger.info(f"[邮件] 正在连接SMTP: {host}:465 (SSL)...")
-        smtp = smtplib.SMTP_SSL(host, 465, timeout=15)
-        logger.info(f"[邮件] SMTP连接成功，正在登录...")
-        smtp.login(user, pwd)
-        logger.info(f"[邮件] 登录成功，正在发送...")
-        smtp.sendmail(user, to, msg.as_string())
-        smtp.quit()
-        logger.info(f"[邮件] 发送成功: {to}")
-        return "邮件发送成功"
-    except socket.timeout as e:
-        logger.error(f"[邮件] SMTP连接超时: {e}")
-        return f"邮件发送失败：SMTP连接超时 {e}"
-    except smtplib.SMTPAuthenticationError as e:
-        logger.error(f"[邮件] SMTP认证失败: {e}")
-        return f"邮件发送失败：SMTP认证失败 {e}"
+        payload = json.dumps({
+            "from": sender,
+            "to": [to],
+            "subject": subject,
+            "text": content
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            "https://api.resend.com/emails",
+            data=payload,
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            method="POST"
+        )
+        logger.info(f"[邮件] 正在调用 Resend API...")
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+            logger.info(f"[邮件] 发送成功: {to}, id={body.get('id')}")
+            return "邮件发送成功"
+    except urllib.error.HTTPError as e:
+        err_body = e.read().decode("utf-8", errors="replace")
+        logger.error(f"[邮件] Resend API 错误: {e.code} {err_body}")
+        return f"邮件发送失败：API错误 {e.code} {err_body}"
     except Exception as e:
         logger.error(f"[邮件] 发送异常: {type(e).__name__}: {e}")
         return f"邮件发送失败：{type(e).__name__}: {e}"
