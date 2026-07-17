@@ -14,7 +14,7 @@ def send_email(to:str, subject:str, content:str) -> str:
     通过 Resend HTTP API 发送邮件（HTTPS 443，兼容 Render 免费实例）
     """
     api_key = os.getenv("RESEND_API_KEY", "")
-    sender = os.getenv("EMAIL_FROM", "onboarding@resend.dev")
+    sender = "onboarding@resend.dev"
     logger.info(f"[邮件] 准备发送: to={to}, from={sender}")
     try:
         payload = json.dumps({
