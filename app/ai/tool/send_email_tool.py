@@ -1,6 +1,6 @@
-import json
-import urllib.request
-import urllib.error
+import smtplib
+from email.mime.text import MIMEText
+from email.header import Header
 import os
 
 from dotenv import load_dotenv
@@ -11,40 +11,23 @@ logger = Logger().get_Logger(__name__)
 
 def send_email(to:str, subject:str, content:str) -> str:
     """
-    通过 Resend HTTP API 发送邮件（HTTPS 443，兼容 Render 免费实例）
+    通过腾讯邮箱SMTP发送邮件（SMTP_SSL 端口465）
     """
-    api_key = os.getenv("RESEND_API_KEY", "")
-    sender = "onboarding@resend.dev"
-    logger.info(f"[邮件] 准备发送: to={to}, from={sender}, key={api_key[:8]}...{api_key[-4:] if len(api_key)>12 else '???'}")
     try:
-        payload = json.dumps({
-            "from": sender,
-            "to": [to],
-            "subject": subject,
-            "text": content
-        }).encode("utf-8")
-        req = urllib.request.Request(
-            "https://api.resend.com/emails",
-            data=payload,
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json"
-            },
-            method="POST"
-        )
-        logger.info(f"[邮件] 正在调用 Resend API... url={req.full_url}")
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-            logger.info(f"[邮件] 发送成功: {to}, id={body.get('id')}")
-            return "邮件发送成功"
-    except urllib.error.HTTPError as e:
-        err_body = e.read().decode("utf-8", errors="replace")
-        err_headers = dict(e.headers) if e.headers else {}
-        logger.error(f"[邮件] Resend API 错误: status={e.code}, body={err_body}, headers={err_headers}")
-        return f"邮件发送失败：API错误 {e.code} {err_body}"
+        msg = MIMEText(content, 'plain', 'utf-8')
+        msg['To'] = to
+        msg['From'] = os.getenv("EMAIL_FROM")
+        msg['Subject'] = Header(subject, 'utf-8')
+
+        smtp = smtplib.SMTP_SSL(os.getenv("EMAIL_HOST"), 465)
+        smtp.login(os.getenv("EMAIL_FROM"), os.getenv("EMAIL_PASSWORD"))
+        smtp.sendmail(os.getenv("EMAIL_FROM"), to, msg.as_string())
+        smtp.quit()
+        logger.info(f"[邮件] 发送成功: {to}")
+        return "邮件发送成功"
     except Exception as e:
-        logger.error(f"[邮件] 发送异常: {type(e).__name__}: {e}")
-        return f"邮件发送失败：{type(e).__name__}: {e}"
+        logger.error(f"[邮件] 发送失败: {e}")
+        return f"邮件发送失败：{e}"
 
 
 
